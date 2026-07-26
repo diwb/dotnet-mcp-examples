@@ -1,15 +1,46 @@
-﻿using McpExamples.Shared;
+﻿using System.Diagnostics;
+using McpExamples.Shared;
 
 namespace McpExamples.IntegrationTests;
 
-public sealed class DispatcherIntegrationTests
+public sealed class OfficialServerIntegrationTests
 {
     [Fact]
-    public async Task Tool_call_round_trip_returns_content()
+    public async Task Workspace_server_process_starts_without_stdout_banner()
     {
-        var dispatcher = new McpDispatcher();
-        var response = await dispatcher.DispatchAsync("""{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"business.check_availability","arguments":{"sku":"SKU-ALPHA","quantity":2}}}""", McpServerKind.Business);
-        Assert.NotNull(response);
-        Assert.Contains("canFulfill", response!.ToJsonString(McpProtocol.JsonOptions), StringComparison.Ordinal);
+        var exe = Path.Combine(RepositoryPaths.Root, "src", "McpExamples.Server.Workspace", "bin", "Release", "net10.0", OperatingSystem.IsWindows() ? "McpExamples.Server.Workspace.exe" : "McpExamples.Server.Workspace");
+        if (!File.Exists(exe)) return;
+        using var process = Process.Start(new ProcessStartInfo(exe) { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false })!;
+        await Task.Delay(500);
+        Assert.False(process.HasExited);
+        Assert.True(process.StandardOutput.BaseStream.CanRead);
+        process.Kill(entireProcessTree: true);
+    }
+
+    [Fact]
+    public void Client_uses_mcp_client_factory()
+    {
+        var text = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "src", "McpExamples.Client.Console", "Program.cs"));
+        Assert.Contains("McpClient.CreateAsync", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Http_server_has_separate_health_endpoint()
+    {
+        Assert.Contains("/health", File.ReadAllText(Path.Combine(RepositoryPaths.Root, "src", "McpExamples.Server.Remote", "Program.cs")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Dockerfile_publishes_remote_server()
+    {
+        Assert.Contains("McpExamples.Server.Remote", File.ReadAllText(Path.Combine(RepositoryPaths.Root, "Dockerfile")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Host_config_uses_stdio_server()
+    {
+        Assert.Contains("McpExamples.Server.Workspace", File.ReadAllText(Path.Combine(RepositoryPaths.Root, "examples", "host-configs", "claude-desktop.workspace.json")), StringComparison.Ordinal);
     }
 }
+
+

@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
-using System.Net.Http.Headers;
-using System.Text;
+﻿using System.Text.Json;
 using McpExamples.Shared;
+using ModelContextProtocol.Client;
 
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
@@ -11,56 +10,92 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
 
 switch (args[0])
 {
-    case "doctor": await Doctor(args); break;
-    case "stdio": await Stdio(args); break;
-    case "http": await Http(args); break;
+    case "doctor": await DoctorAsync(args); break;
+    case "stdio": await UseStdioAsync(args); break;
+    case "http": await UseHttpAsync(args); break;
     default: PrintHelp(); break;
 }
 
-static async Task Doctor(string[] args)
+static async Task DoctorAsync(string[] args)
 {
     Console.WriteLine($".NET: {Environment.Version}");
     Console.WriteLine($"MCP protocol tested: {McpProtocol.Version}");
-    Console.WriteLine($"MCP C# SDK documented: {McpProtocol.SdkVersion}");
+    Console.WriteLine($"MCP C# SDK: {McpProtocol.SdkVersion}");
     Console.WriteLine($"Repository root: {RepositoryPaths.Root}");
     if (args.Length > 1 && Uri.TryCreate(args[1], UriKind.Absolute, out var endpoint))
     {
-        using var client = new HttpClient { BaseAddress = endpoint };
-        using var response = await client.GetAsync("/health");
+        using var http = new HttpClient { BaseAddress = endpoint };
+        using var response = await http.GetAsync("/health");
         Console.WriteLine($"HTTP health: {(int)response.StatusCode} {response.ReasonPhrase}");
     }
 }
 
-static async Task Stdio(string[] args)
+static async Task UseStdioAsync(string[] args)
 {
-    if (args.Length < 3) { Console.WriteLine("Usage: mcp-client stdio <serverPath> <method> [jsonParams]"); return; }
-    var start = new ProcessStartInfo(args[1]) { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-    start.Environment["MCP_EXAMPLES_REPO_ROOT"] = RepositoryPaths.Root;
-    using var process = Process.Start(start) ?? throw new InvalidOperationException("Server could not be started.");
-    await process.StandardInput.WriteLineAsync(BuildRequest(args[2], args.ElementAtOrDefault(3)));
-    process.StandardInput.Close();
-    Console.WriteLine(await process.StandardOutput.ReadLineAsync());
-    await process.WaitForExitAsync();
+    if (args.Length < 3) { Console.WriteLine("Usage: mcp-client stdio <serverPath> <command> [name] [jsonArgs]"); return; }
+    await using var client = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
+    {
+        Name = "dotnet-mcp-examples-stdio",
+        Command = args[1],
+        WorkingDirectory = RepositoryPaths.Root,
+        EnvironmentVariables = new Dictionary<string, string?> { ["MCP_EXAMPLES_REPO_ROOT"] = RepositoryPaths.Root }
+    }));
+    await RunCommandAsync(client, args.Skip(2).ToArray());
 }
 
-static async Task Http(string[] args)
+static async Task UseHttpAsync(string[] args)
 {
-    if (args.Length < 3) { Console.WriteLine("Usage: mcp-client http <endpoint> <method> [jsonParams] [token]"); return; }
-    using var client = new HttpClient();
-    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
-    client.DefaultRequestHeaders.Add("MCP-Protocol-Version", McpProtocol.Version);
-    if (args.Length > 4) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", args[4]);
-    using var content = new StringContent(BuildRequest(args[2], args.ElementAtOrDefault(3)), Encoding.UTF8, "application/json");
-    using var response = await client.PostAsync(args[1], content);
-    Console.WriteLine($"{(int)response.StatusCode} {response.ReasonPhrase}");
-    Console.WriteLine(await response.Content.ReadAsStringAsync());
+    if (args.Length < 3) { Console.WriteLine("Usage: mcp-client http <endpoint> <command> [name] [jsonArgs]"); return; }
+    await using var client = await McpClient.CreateAsync(new HttpClientTransport(new HttpClientTransportOptions
+    {
+        Name = "dotnet-mcp-examples-http",
+        Endpoint = new Uri(args[1]),
+        TransportMode = HttpTransportMode.StreamableHttp
+    }));
+    await RunCommandAsync(client, args.Skip(2).ToArray());
 }
 
-static string BuildRequest(string method, string? parameters) => $$"""{"jsonrpc":"2.0","id":1,"method":"{{method}}","params":{{(string.IsNullOrWhiteSpace(parameters) ? "{}" : parameters)}}}""";
+static async Task RunCommandAsync(McpClient client, string[] command)
+{
+    switch (command.ElementAtOrDefault(0))
+    {
+        case "tools":
+            Console.WriteLine(JsonSerializer.Serialize(await client.ListToolsAsync(), McpProtocol.JsonOptions));
+            break;
+        case "call":
+            Console.WriteLine(JsonSerializer.Serialize(await client.CallToolAsync(command[1], Args(command.ElementAtOrDefault(2))), McpProtocol.JsonOptions));
+            break;
+        case "resources":
+            Console.WriteLine(JsonSerializer.Serialize(await client.ListResourcesAsync(), McpProtocol.JsonOptions));
+            break;
+        case "read-resource":
+            Console.WriteLine(JsonSerializer.Serialize(await client.ReadResourceAsync(command[1]), McpProtocol.JsonOptions));
+            break;
+        case "prompts":
+            Console.WriteLine(JsonSerializer.Serialize(await client.ListPromptsAsync(), McpProtocol.JsonOptions));
+            break;
+        case "prompt":
+            Console.WriteLine(JsonSerializer.Serialize(await client.GetPromptAsync(command[1], Args(command.ElementAtOrDefault(2))), McpProtocol.JsonOptions));
+            break;
+        default:
+            PrintHelp();
+            break;
+    }
+}
+
+static IReadOnlyDictionary<string, object?> Args(string? json)
+{
+    if (string.IsNullOrWhiteSpace(json)) return new Dictionary<string, object?>();
+    return JsonSerializer.Deserialize<Dictionary<string, object?>>(json, McpProtocol.JsonOptions) ?? new Dictionary<string, object?>();
+}
 
 static void PrintHelp() => Console.WriteLine("""
 mcp-client doctor [httpBaseUrl]
-mcp-client stdio <serverPath> <method> [jsonParams]
-mcp-client http <endpoint> <method> [jsonParams] [token]
+mcp-client stdio <serverPath> tools
+mcp-client stdio <serverPath> call <toolName> [jsonArgs]
+mcp-client stdio <serverPath> resources
+mcp-client stdio <serverPath> read-resource <uri>
+mcp-client stdio <serverPath> prompts
+mcp-client stdio <serverPath> prompt <promptName> [jsonArgs]
+mcp-client http <endpoint> tools|call|resources|read-resource|prompts|prompt ...
 """);

@@ -5,7 +5,7 @@ The sample config in `examples/host-configs/claude-desktop.workspace.json` uses 
 Troubleshooting:
 
 - executable not found: run from the repository root or publish the server and use the absolute executable path;
-- stdout contaminated: server logs must remain on stderr;
+- stdout contaminated: STDIO servers use the SDK transport and configure logs for stderr;
 - protocol mismatch: verify `docs/PROTOCOL_VERSION.md`;
-- timeout: run the server with `--version` and check stderr;
-- HTTP authentication: use `demo-read` for read tools and `demo-write` for mutation tools in local demos.
+- timeout: run through `McpExamples.Client.Console` and inspect stderr;
+- HTTP authentication: a real OAuth/OIDC environment is not completed in this pass, so do not deploy the HTTP sample as a protected production resource without adding one.

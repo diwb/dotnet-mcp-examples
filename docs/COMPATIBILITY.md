@@ -2,4 +2,4 @@
 
 | SDK | Protocol | Transport | Stable capabilities | Experimental or limited | Clients tested |
 | --- | --- | --- | --- | --- | --- |
-| `ModelContextProtocol.AspNetCore 1.4.1` package referenced | `2025-06-18` | STDIO, Streamable HTTP-style `/mcp` | tools, resources, resource templates, prompts, pagination, cancellation notification handling | Full OAuth/OIDC provider, Inspector screenshots and conformance suite were not completed in this local pass | `McpExamples.Client.Console`, dispatcher tests |
+| `ModelContextProtocol 1.4.1`, `ModelContextProtocol.AspNetCore 1.4.1` | `2025-11-25` | Official STDIO and Streamable HTTP | tools, resources, resource templates, prompts, SDK pagination, cancellation tokens, lifecycle and capability negotiation | OAuth/OIDC environment and Inspector evidence remain documented limitations in this pass | `McpExamples.Client.Console` with official STDIO and HTTP transports |

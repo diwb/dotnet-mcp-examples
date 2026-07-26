@@ -1,37 +1,20 @@
 ﻿using McpExamples.Shared;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-await StdioServer.RunAsync(McpServerKind.Workspace, args);
-
-internal static class StdioServer
-{
-    public static async Task RunAsync(McpServerKind kind, string[] args)
+var builder = Host.CreateApplicationBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+builder.Services.AddSingleton<WorkspaceCatalog>();
+builder.Services.AddMcpServer(options =>
     {
-        if (args.Contains("--version", StringComparer.Ordinal))
-        {
-            await Console.Error.WriteLineAsync($"MCP protocol {McpProtocol.Version}; SDK {McpProtocol.SdkVersion}");
-            return;
-        }
+        options.ServerInfo = new() { Name = "mcp-examples-workspace", Title = "Secure Workspace MCP Example", Version = "1.0.1" };
+        options.ProtocolVersion = McpProtocol.Version;
+    })
+    .WithStdioServerTransport()
+    .WithTools<WorkspaceTools>()
+    .WithResources<WorkspaceResources>()
+    .WithPrompts<WorkspacePrompts>();
 
-        Console.Error.WriteLine($"Starting {kind} MCP server. Logs intentionally use stderr.");
-        var dispatcher = new McpDispatcher();
-        while (await Console.In.ReadLineAsync() is { } line)
-        {
-            if (string.IsNullOrWhiteSpace(line)) continue;
-            try
-            {
-                var response = await dispatcher.DispatchAsync(line, kind);
-                if (response is not null)
-                {
-                    await Console.Out.WriteLineAsync(response.ToJsonString(McpProtocol.JsonOptions));
-                    await Console.Out.FlushAsync();
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                await Console.Error.WriteLineAsync($"Request failed: {ex.GetType().Name}");
-                await Console.Out.WriteLineAsync("""{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"Internal error."}}""");
-                await Console.Out.FlushAsync();
-            }
-        }
-    }
-}
+await builder.Build().RunAsync();

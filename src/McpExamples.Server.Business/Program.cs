@@ -1,28 +1,20 @@
 ﻿using McpExamples.Shared;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-await StdioServer.RunAsync(McpServerKind.Business, args);
-
-internal static class StdioServer
-{
-    public static async Task RunAsync(McpServerKind kind, string[] args)
+var builder = Host.CreateApplicationBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+builder.Services.AddSingleton<BusinessCatalog>();
+builder.Services.AddMcpServer(options =>
     {
-        if (args.Contains("--version", StringComparer.Ordinal))
-        {
-            await Console.Error.WriteLineAsync($"MCP protocol {McpProtocol.Version}; SDK {McpProtocol.SdkVersion}");
-            return;
-        }
+        options.ServerInfo = new() { Name = "mcp-examples-business", Title = "B2B Orders MCP Example", Version = "1.0.1" };
+        options.ProtocolVersion = McpProtocol.Version;
+    })
+    .WithStdioServerTransport()
+    .WithTools<BusinessTools>()
+    .WithResources<BusinessResources>()
+    .WithPrompts<BusinessPrompts>();
 
-        Console.Error.WriteLine($"Starting {kind} MCP server. Logs intentionally use stderr.");
-        var dispatcher = new McpDispatcher();
-        while (await Console.In.ReadLineAsync() is { } line)
-        {
-            if (string.IsNullOrWhiteSpace(line)) continue;
-            var response = await dispatcher.DispatchAsync(line, kind);
-            if (response is not null)
-            {
-                await Console.Out.WriteLineAsync(response.ToJsonString(McpProtocol.JsonOptions));
-                await Console.Out.FlushAsync();
-            }
-        }
-    }
-}
+await builder.Build().RunAsync();
