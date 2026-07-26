@@ -32,10 +32,11 @@ ERROR: error during connect: Head "http://%2F%2F.%2Fpipe%2FdockerDesktopLinuxEng
 
 The Docker daemon was unavailable, so image build and container health were not validated in this environment.
 
-Commit validated: `1da4561393f257ee4479f7702c9b783a54f8ffd5`.
+Commit validated: `1da4561393f257ee4479f7702c9b783a54f8ffd5`. Commit final: `4fce77a2544de5986c6817d4dc5c481b348c5dea`.
 
 Limitations:
 
 - Full OAuth/OIDC with PKCE is represented by metadata and demo bearer scopes, not by a production authorization server.
 - Official MCP Inspector and conformance artifacts are not yet captured.
-- GitHub publication, workflow run monitoring, release artifacts and checksums were not completed in this local pass.
+- GitHub publication completed. CI run 30220645941 and CodeQL run 30220645954 passed on main. Release artifacts and checksums were not completed in this pass.
+
