@@ -74,4 +74,7 @@ The Docker daemon was unavailable, so image build, authorization server containe
 
 Branch: `fix/official-mcp-implementation`.
 
+Validated local commit: `a2c8d04be577c20cd673b3f7a7395af635cb04d0`.
+
 CI, CodeQL, release and artifact publication must be run after this branch is pushed/merged. This audit does not claim remote checks for the current branch yet.
+
