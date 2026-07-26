@@ -90,7 +90,7 @@ public sealed class WorkspaceCatalog
 
     public string? Resolve(string relativePath, bool mustExist = true)
     {
-        if (Path.IsPathFullyQualified(relativePath) || relativePath.StartsWith("\\\\", StringComparison.Ordinal) || relativePath.Contains("..", StringComparison.Ordinal)) return null;
+        if (Path.IsPathFullyQualified(relativePath) || relativePath.StartsWith("\\\\", StringComparison.Ordinal) || relativePath.Contains(':', StringComparison.Ordinal) || relativePath.Contains("..", StringComparison.Ordinal)) return null;
         var normalized = relativePath.Replace('\\', '/');
         var fileName = Path.GetFileName(normalized);
         if (!SafeName.IsMatch(fileName) || !AllowedExtension(fileName)) return null;
@@ -286,5 +286,6 @@ public static class RepositoryPaths
 
     public static string WorkspaceRoot => Path.Combine(Root, "data", "workspace");
 }
+
 
 
