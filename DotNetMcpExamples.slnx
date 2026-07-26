@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/McpExamples.Client.Console/McpExamples.Client.Console.csproj" />
+    <Project Path="src/McpExamples.Server.Business/McpExamples.Server.Business.csproj" />
+    <Project Path="src/McpExamples.Server.Remote/McpExamples.Server.Remote.csproj" />
+    <Project Path="src/McpExamples.Server.Workspace/McpExamples.Server.Workspace.csproj" />
+    <Project Path="src/McpExamples.Shared/McpExamples.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/McpExamples.IntegrationTests/McpExamples.IntegrationTests.csproj" />
+    <Project Path="tests/McpExamples.ProtocolTests/McpExamples.ProtocolTests.csproj" />
+    <Project Path="tests/McpExamples.SecurityTests/McpExamples.SecurityTests.csproj" />
+    <Project Path="tests/McpExamples.UnitTests/McpExamples.UnitTests.csproj" />
+  </Folder>
+</Solution>

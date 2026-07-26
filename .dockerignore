@@ -1,0 +1,9 @@
+﻿bin/
+obj/
+.git/
+.github/
+TestResults/
+coverage/
+artifacts/
+*.user
+*.suo

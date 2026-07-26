@@ -1,0 +1,11 @@
+﻿bin/
+obj/
+.vs/
+.idea/
+TestResults/
+coverage/
+artifacts/
+*.user
+*.suo
+*.db
+*.log

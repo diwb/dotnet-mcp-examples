@@ -1,0 +1,8 @@
+﻿{
+  "mcpServers": {
+    "dotnet-mcp-workspace": {
+      "command": "dotnet",
+      "args": ["run", "--project", "src/McpExamples.Server.Workspace", "--configuration", "Release"]
+    }
+  }
+}

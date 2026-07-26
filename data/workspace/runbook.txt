@@ -1,0 +1,3 @@
+﻿Remote MCP server runbook
+
+Use Streamable HTTP on /mcp. Validate Origin, require bearer scopes for business mutations, and keep /health outside the MCP endpoint.
