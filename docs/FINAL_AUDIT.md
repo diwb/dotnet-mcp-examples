@@ -76,5 +76,21 @@ Branch: `fix/official-mcp-implementation`.
 
 Validated local commit: `a2c8d04be577c20cd673b3f7a7395af635cb04d0`.
 
-CI, CodeQL, release and artifact publication must be run after this branch is pushed/merged. This audit does not claim remote checks for the current branch yet.
+CI run 30223472039 passed on main. CodeQL run 30223472047 passed on main. Release: https://github.com/diwb/dotnet-mcp-examples/releases/tag/v1.0.1. Artifacts: 8 framework-dependent Windows/Linux zip archives plus checksums.sha256.
+
+Checksums:
+
+`	ext
+cf9e6f53491ff8f163e01c128de13cefc49843e4f0f1b7d31aac5cc35df50a48  McpExamples.Client.Console-linux-x64.zip
+2068f38f3e3f223f5bcd4779675e6bd3ff9ab381297b282606657a1dcbf5a3c9  McpExamples.Client.Console-win-x64.zip
+fcb17a4bc9be7d29caea4c45991383914beb8902630effacbf431a1c2912a671  McpExamples.Server.Business-linux-x64.zip
+a7e2ce9af4de944fa24751d0e57f176d8791d695f0e60d004a3667503bedf006  McpExamples.Server.Business-win-x64.zip
+23e7bf2dca5adb4b8eeda24768ba0a318c6c7a01b1aa47f0188cacf42f7d41d4  McpExamples.Server.Remote-linux-x64.zip
+40c8392727747908c9cfb7cb48585ac66035bccedb535e0318b82a5455355ecc  McpExamples.Server.Remote-win-x64.zip
+0ef2e4ac064ff6bb32fd5f771ff27bca5f727730115232d19cb94a584dcedd5f  McpExamples.Server.Workspace-linux-x64.zip
+554b2dc5e75121192762583f52f66a0dfcc2738558da2e62156a7ef0fc255cfb  McpExamples.Server.Workspace-win-x64.zip
+` 
+
+Final implementation commit before release: $hash.
+
 
