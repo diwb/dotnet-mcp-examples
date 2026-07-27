@@ -6,7 +6,7 @@ Status: Project 4 final hardening implemented locally on 2026-07-27.
 
 - Validated base commit from `main`: `3e8e603f1e9f8a7f7fc456a1b43d10350a260ffa`.
 - Hardening branch: `fix/mcp-security-and-release-hardening`.
-- Final implementation commit validated before audit finalization: `d8ca5cf2b3b4f062cfd4079232e5f808393ab7aa`.
+- Final implementation commit validated before audit finalization: `ca8295714a3fd86943daf60fdf6a761e6f6bf7b7`.
 - GitHub default branch confirmed: `main` via `gh repo view diwb/dotnet-mcp-examples --json defaultBranchRef`.
 
 ## Versions
@@ -113,7 +113,10 @@ GitHub Actions validation added in `docker-oauth-mcp` job:
 
 - CI workflow updated to include build/test and Docker/OAuth/MCP validation.
 - CodeQL workflow remains present in `.github/workflows/codeql.yml`.
-- Remote GitHub run status: pending until this branch is pushed and integrated.
+- CI run `30270710804` passed on `main` at `ca8295714a3fd86943daf60fdf6a761e6f6bf7b7`.
+- Docker job `docker-oauth-mcp` passed in CI: build, startup, health, OAuth discovery, token issuance, authenticated MCP call and shutdown.
+- CodeQL run `30270713261` passed on `main` at `ca8295714a3fd86943daf60fdf6a761e6f6bf7b7`.
+- Final release tag is created after this audit status update; GitHub release metadata records the exact tag target commit.
 
 ## Release v1.1.0
 
@@ -154,6 +157,7 @@ bcb31a517491f9f0f1cf5598c138e265257a4dfd99f2b22b35d51a934ae853c5  McpExamples.Se
 - Inspector UI screenshots are not included; only pinned CLI Inspector evidence is claimed.
 - Inspector transitive npm dev dependencies currently report audit findings.
 - HTTPS local development requires trusted local certificates or the CI-generated certificate flow.
+
 
 
 
