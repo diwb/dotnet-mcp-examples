@@ -6,7 +6,7 @@ Status: Project 4 final hardening implemented locally on 2026-07-27.
 
 - Validated base commit from `main`: `3e8e603f1e9f8a7f7fc456a1b43d10350a260ffa`.
 - Hardening branch: `fix/mcp-security-and-release-hardening`.
-- Final implementation commit: `30e756b6dcf5af3ba6ea9b9f0ee4e396f421cde5`.
+- Final implementation commit validated before audit finalization: `d8ca5cf2b3b4f062cfd4079232e5f808393ab7aa`.
 - GitHub default branch confirmed: `main` via `gh repo view diwb/dotnet-mcp-examples --json defaultBranchRef`.
 
 ## Versions
@@ -154,5 +154,6 @@ bcb31a517491f9f0f1cf5598c138e265257a4dfd99f2b22b35d51a934ae853c5  McpExamples.Se
 - Inspector UI screenshots are not included; only pinned CLI Inspector evidence is claimed.
 - Inspector transitive npm dev dependencies currently report audit findings.
 - HTTPS local development requires trusted local certificates or the CI-generated certificate flow.
+
 
 
