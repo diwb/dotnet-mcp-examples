@@ -6,10 +6,10 @@ RUN dotnet publish src/McpExamples.Server.Remote/McpExamples.Server.Remote.cspro
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
-RUN adduser --disabled-password --gecos "" appuser
-USER appuser
+USER $APP_UID
 COPY --from=build /out .
 ENV ASPNETCORE_URLS=https://+:8081
 EXPOSE 8081
 HEALTHCHECK CMD curl --insecure --fail https://localhost:8081/health || exit 1
 ENTRYPOINT ["dotnet", "McpExamples.Server.Remote.dll"]
+
