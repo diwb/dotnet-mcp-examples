@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -14,6 +15,31 @@ public static class McpProtocol
     public const string Version = "2025-11-25";
     public const string SdkVersion = "1.4.1";
     public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+}
+
+public static class McpAuthorizationPolicy
+{
+    public const string ResourceAudience = "mcp-examples-remote";
+    public static readonly string[] Scopes = ["catalog.read", "orders.read", "orders.write"];
+
+    public static string? RequiredScopeForTool(string? toolName) => toolName switch
+    {
+        "business.get_customer" or "business.list_orders" or "business.get_order" => "orders.read",
+        "business.check_availability" or "business.quote_order" => "catalog.read",
+        "business.create_demo_order" or "business.cancel_demo_order" => "orders.write",
+        _ => null
+    };
+
+    public static bool HasScope(ClaimsPrincipal principal, string scope)
+    {
+        if (!Scopes.Contains(scope, StringComparer.Ordinal)) return false;
+        return principal.FindAll("scope").Concat(principal.FindAll("scp"))
+            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .Contains(scope, StringComparer.Ordinal);
+    }
+
+    public static bool HasAudience(ClaimsPrincipal principal, string audience) =>
+        principal.FindAll("aud").Any(claim => string.Equals(claim.Value, audience, StringComparison.Ordinal));
 }
 
 public sealed record DocumentMetadata(string Name, long Bytes, int Lines, string MimeType);
@@ -286,6 +312,3 @@ public static class RepositoryPaths
 
     public static string WorkspaceRoot => Path.Combine(Root, "data", "workspace");
 }
-
-
-

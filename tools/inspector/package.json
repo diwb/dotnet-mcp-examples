@@ -1,0 +1,12 @@
+﻿{
+  "name": "dotnet-mcp-examples-inspector",
+  "private": true,
+  "version": "1.1.0",
+  "description": "Pinned MCP Inspector harness for dotnet-mcp-examples.",
+  "scripts": {
+    "inspector": "mcp-inspector"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/inspector": "1.0.0"
+  }
+}

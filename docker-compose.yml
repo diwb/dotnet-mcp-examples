@@ -1,8 +1,46 @@
 ﻿services:
-  mcp-remote:
-    build: .
+  authorization-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.authorization
     ports:
-      - "8080:8080"
+      - "7001:7001"
     environment:
-      Mcp__AllowedOrigins__0: "http://localhost"
-      Mcp__AllowedOrigins__1: "https://localhost"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/mcp-examples.pfx"
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "${MCP_EXAMPLES_CERT_PASSWORD:-local-dev-password}"
+      OAuth__Issuer: "https://authorization-server:7001/"
+      OAuth__LoopbackRedirectUri: "http://127.0.0.1:37645/callback"
+      OAuth__Resource: "https://mcp-remote:8081/mcp"
+    volumes:
+      - ${MCP_EXAMPLES_CERT_DIR:-./.certs}:/https:ro
+    healthcheck:
+      test: ["CMD", "curl", "--insecure", "--fail", "https://localhost:7001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mcp-remote:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      authorization-server:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/mcp-examples.pfx"
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "${MCP_EXAMPLES_CERT_PASSWORD:-local-dev-password}"
+      SSL_CERT_FILE: "/https/mcp-examples-ca.crt"
+      OAuth__Issuer: "https://authorization-server:7001/"
+      Mcp__AllowedOrigins__0: "https://localhost"
+      Mcp__AllowedOrigins__1: "https://127.0.0.1"
+    volumes:
+      - ${MCP_EXAMPLES_CERT_DIR:-./.certs}:/https:ro
+    healthcheck:
+      test: ["CMD", "curl", "--insecure", "--fail", "https://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10

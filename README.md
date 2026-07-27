@@ -10,8 +10,9 @@ This repository targets MCP protocol `2025-11-25` with the stable C# SDK package
 | --- | --- | --- |
 | `McpExamples.Server.Workspace` | Official SDK STDIO | Safe workspace tools, resources and prompts over repository-owned files. |
 | `McpExamples.Server.Business` | Official SDK STDIO | Deterministic B2B catalog and order operations. |
-| `McpExamples.Server.Remote` | Official SDK Streamable HTTP | ASP.NET Core `/mcp` endpoint mapped with `app.MapMcp`, plus Origin validation, payload limits and rate limiting. |
-| `McpExamples.Client.Console` | Official SDK STDIO and HTTP client transports | Reference CLI for doctor checks and direct MCP SDK calls. |
+| `McpExamples.Server.Remote` | Official SDK Streamable HTTP | ASP.NET Core `/mcp` endpoint mapped with `app.MapMcp`, protected by OpenIddict validation, Origin checks, payload limits and rate limiting. |
+| `McpExamples.AuthorizationServer` | HTTPS OAuth/OIDC | Local OpenIddict issuer for Authorization Code + PKCE S256 and demo-only public client data. |
+| `McpExamples.Client.Console` | Official SDK STDIO, HTTP and OAuth helper | Reference CLI for doctor checks, PKCE auth and direct MCP SDK calls. |
 
 ## Quick Start
 
@@ -28,16 +29,19 @@ List workspace tools through the official STDIO client/server path:
 dotnet run --project src/McpExamples.Client.Console --configuration Release -- stdio .\src\McpExamples.Server.Workspace\bin\Release\net10.0\McpExamples.Server.Workspace.exe tools
 ```
 
-Run the HTTP server:
+Run the local authorization server and remote HTTP MCP server over HTTPS:
 
 ```powershell
-dotnet run --project src/McpExamples.Server.Remote --configuration Release -- --urls http://127.0.0.1:5055
+dotnet run --project src/McpExamples.AuthorizationServer --configuration Release -- --urls https://localhost:7001
+dotnet run --project src/McpExamples.Server.Remote --configuration Release -- --urls https://localhost:8081
 ```
 
-Then list remote tools through Streamable HTTP:
+Authenticate with Authorization Code + PKCE, then call the authenticated Streamable HTTP endpoint:
 
 ```powershell
-dotnet run --project src/McpExamples.Client.Console --configuration Release -- http http://127.0.0.1:5055/mcp tools
+dotnet run --project src/McpExamples.Client.Console --configuration Release -- auth-code https://localhost:7001 "catalog.read orders.read orders.write"
+$env:MCP_EXAMPLES_ACCESS_TOKEN = "<access_token>"
+dotnet run --project src/McpExamples.Client.Console --configuration Release -- http https://localhost:8081/mcp tools
 ```
 
 ## Architecture
@@ -58,8 +62,9 @@ flowchart LR
 
 The workspace server rejects absolute paths, `..`, UNC-style inputs, unsupported extensions and files outside `data/workspace`. STDIO servers configure console logging to stderr. The HTTP server validates Origin, enforces a payload limit and applies a fixed-window rate limiter before the SDK endpoint.
 
-OAuth/OIDC is intentionally documented as a remaining hardening item in this pass; no fixed demo bearer tokens are accepted by the server.
+HTTP MCP authentication uses OpenIddict validation against the local authorization server. Tokens must come from the configured issuer, target audience/resource `mcp-examples-remote`, be unexpired and include the tool-specific scope. Missing/invalid tokens return `401` with `WWW-Authenticate`; insufficient scope returns `403`.
 
 ## License
 
 MIT
+

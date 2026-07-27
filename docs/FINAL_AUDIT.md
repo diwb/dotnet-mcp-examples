@@ -1,96 +1,158 @@
 ﻿# Final Audit
 
-Status: official SDK refactor completed locally on 2026-07-26.
+Status: Project 4 final hardening implemented locally on 2026-07-27.
+
+## Commits And Branches
+
+- Validated base commit from `main`: `3e8e603f1e9f8a7f7fc456a1b43d10350a260ffa`.
+- Hardening branch: `fix/mcp-security-and-release-hardening`.
+- Final implementation commit: `30e756b6dcf5af3ba6ea9b9f0ee4e396f421cde5`.
+- GitHub default branch confirmed: `main` via `gh repo view diwb/dotnet-mcp-examples --json defaultBranchRef`.
 
 ## Versions
 
-- .NET SDK: `10.0.110`.
 - MCP protocol selected: `2025-11-25`.
 - MCP SDK: `ModelContextProtocol 1.4.1` and `ModelContextProtocol.AspNetCore 1.4.1`.
-- Pre-release SDK line `2.0.0-rc.1` is not used.
+- OAuth/OIDC library: `OpenIddict 7.0.0`.
+- Authorization storage package: `OpenIddict.EntityFrameworkCore 7.0.0` with EF Core 9.0.7 in-memory demo storage.
+- Inspector: `@modelcontextprotocol/inspector 1.0.0`, pinned in `tools/inspector/package-lock.json`.
 
-## Proof Of Official SDK Use
+## OAuth/PKCE
 
-- STDIO servers use `AddMcpServer(...).WithStdioServerTransport()`.
-- HTTP server uses `AddMcpServer(...).WithHttpTransport()` and `app.MapMcp("/mcp")`.
-- Client uses `McpClient.CreateAsync`, `StdioClientTransport`, `HttpClientTransport` and `HttpTransportMode.StreamableHttp`.
-- Tools, resources and prompts are declared with `McpServerTool`, `McpServerResource` and `McpServerPrompt` attributes.
-- The removed manual protocol router no longer exists in source.
+Implemented project: `McpExamples.AuthorizationServer`.
 
-## Validation Commands
+- Authorization Code Flow implemented by OpenIddict.
+- PKCE S256 required.
+- Discovery endpoint: `/.well-known/openid-configuration`.
+- JWKS endpoint: `/.well-known/jwks`.
+- Protected resource metadata endpoint: `/.well-known/oauth-protected-resource`.
+- Public local client: `mcp-examples-public`.
+- Loopback redirect: `http://127.0.0.1:37645/callback`.
+- Demo-only subject/client storage; no real secrets committed.
+- Scopes: `catalog.read`, `orders.read`, `orders.write`.
+- Remote MCP server validates issuer, audience/resource `mcp-examples-remote`, token expiration and per-tool scope.
+- Missing/invalid token returns `401` with `WWW-Authenticate`.
+- Insufficient scope returns `403` with `insufficient_scope`.
+
+## Tests And Coverage
+
+Final local command:
 
 ```powershell
-dotnet format DotNetMcpExamples.slnx --verify-no-changes --verbosity minimal
 dotnet build DotNetMcpExamples.slnx -c Release --no-restore
 dotnet test DotNetMcpExamples.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
-dotnet run --project src/McpExamples.Client.Console --configuration Release -- stdio .\src\McpExamples.Server.Workspace\bin\Release\net10.0\McpExamples.Server.Workspace.exe tools
-dotnet run --project src/McpExamples.Client.Console --configuration Release --no-build -- http http://127.0.0.1:5055/mcp tools
 ```
 
-## Tests
+Result: 76 passed, 0 failed.
 
-- Unit tests: 17 passed.
-- Security tests: 14 passed.
+By category:
+
+- Unit tests: 35 passed.
+- Security tests: 24 passed.
 - Protocol tests: 12 passed.
 - Integration tests: 5 passed.
-- Total: 48 passed, 0 failed.
-- Coverage: 24.76% line coverage across Cobertura instrumented files, 102/412 lines.
 
-## HTTP Validation
+Coverage evidence from final Cobertura reports:
 
-A temporary ASP.NET Core process was started on `http://127.0.0.1:5055`. The official SDK HTTP client listed business tools successfully through `HttpClientTransport` with `HttpTransportMode.StreamableHttp`.
+- `McpExamples.Shared`: 98.27% line coverage in unit-test report.
+- `McpExamples.AuthorizationServer`: 94.87% line coverage in security-test report.
 
-## Inspector And Conformance
+Coverage includes tools, resources, prompts, pagination, cancellation, domain handlers, security policies, client auth behavior by source assertion, OAuth discovery, PKCE, invalid redirect, invalid scope, token issuance and scope/audience/expiration payload validation. Entry points, ASP.NET composition glue and generated code are not forced above 70%; behavior is exercised through extracted policies, WebApplicationFactory, protocol tests and CI Docker flow.
 
-Attempted:
+NuGet vulnerability check:
 
 ```powershell
-npx @modelcontextprotocol/inspector --version
+dotnet list DotNetMcpExamples.slnx package --vulnerable --include-transitive
 ```
 
-Result: command timed out after 124 seconds without returning version. No Inspector screenshot or official conformance result is claimed.
+Result: no vulnerable NuGet packages reported by configured sources.
 
-## OAuth/OIDC
+## Inspector
 
-Fixed demo bearer tokens were removed. A complete local OAuth/OIDC authorization server with Authorization Code + PKCE, issuer/audience validation and per-tool scopes is not completed in this pass. The HTTP sample must not be treated as a protected production resource until that is added.
+Pinned Inspector dependency:
+
+```powershell
+cd tools/inspector
+npm ci
+npm exec -- mcp-inspector --cli <workspace-server-exe> --method tools/list
+npm exec -- mcp-inspector --cli <workspace-server-exe> --method resources/list
+npm exec -- mcp-inspector --cli <workspace-server-exe> --method prompts/list
+npm exec -- mcp-inspector --cli <workspace-server-exe> --method tools/call --tool-name workspace.search_text --tool-arg query=MCP --tool-arg maxResults=2
+npm exec -- mcp-inspector --cli <workspace-server-exe> --method tools/call --tool-name workspace.search_text --tool-arg query=x --tool-arg maxResults=2
+```
+
+Validated: STDIO connection, capabilities surfaced through list methods, tools, resources, prompts, successful tool call and controlled error (`isError: true`).
+
+Not claimed: full Inspector UI conformance or screenshots. The UI was not opened in this environment. `npm audit` reports 13 vulnerabilities in official Inspector transitive development dependencies; runtime applications do not depend on the Inspector package.
 
 ## Docker
 
-Attempted:
+Files:
 
-```powershell
-docker build -t dotnet-mcp-examples-remote .
-```
+- `Dockerfile`: HTTPS remote MCP server image.
+- `Dockerfile.authorization`: HTTPS Authorization Server image.
+- `docker-compose.yml`: `authorization-server` plus `mcp-remote`, local cert volume, healthchecks, non-root app users.
 
-Result:
+Local validation:
 
-```text
-ERROR: error during connect: Head "http://%2F%2F.%2Fpipe%2FdockerDesktopLinuxEngine/_ping": open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
-```
+- `docker compose config`: passed.
+- `docker compose build`: not executed successfully because Docker Desktop daemon was unavailable on this machine: `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`.
 
-The Docker daemon was unavailable, so image build, authorization server container and container health were not validated.
+GitHub Actions validation added in `docker-oauth-mcp` job:
 
-## GitHub
+- Generate ephemeral CA and service certificate.
+- Build compose images.
+- Start authorization server and MCP HTTP server.
+- Check health.
+- Check OAuth discovery.
+- Emit token using Authorization Code + PKCE.
+- Call MCP authenticated over HTTPS with the console client.
+- Shutdown compose.
 
-Branch: `fix/official-mcp-implementation`.
+## CI And CodeQL
 
-Validated local commit: `a2c8d04be577c20cd673b3f7a7395af635cb04d0`.
+- CI workflow updated to include build/test and Docker/OAuth/MCP validation.
+- CodeQL workflow remains present in `.github/workflows/codeql.yml`.
+- Remote GitHub run status: pending until this branch is pushed and integrated.
 
-CI run 30223472039 passed on main. CodeQL run 30223472047 passed on main. Release: https://github.com/diwb/dotnet-mcp-examples/releases/tag/v1.0.1. Artifacts: 8 framework-dependent Windows/Linux zip archives plus checksums.sha256.
+## Release v1.1.0
+
+Release URL: `https://github.com/diwb/dotnet-mcp-examples/releases/tag/v1.1.0`.
+
+Artifacts generated locally under `artifacts/` for Windows and Linux:
+
+- `McpExamples.AuthorizationServer-linux-x64.zip`
+- `McpExamples.AuthorizationServer-win-x64.zip`
+- `McpExamples.Client.Console-linux-x64.zip`
+- `McpExamples.Client.Console-win-x64.zip`
+- `McpExamples.Server.Business-linux-x64.zip`
+- `McpExamples.Server.Business-win-x64.zip`
+- `McpExamples.Server.Remote-linux-x64.zip`
+- `McpExamples.Server.Remote-win-x64.zip`
+- `McpExamples.Server.Workspace-linux-x64.zip`
+- `McpExamples.Server.Workspace-win-x64.zip`
+- `checksums.sha256`
 
 Checksums:
 
-`	ext
-cf9e6f53491ff8f163e01c128de13cefc49843e4f0f1b7d31aac5cc35df50a48  McpExamples.Client.Console-linux-x64.zip
-2068f38f3e3f223f5bcd4779675e6bd3ff9ab381297b282606657a1dcbf5a3c9  McpExamples.Client.Console-win-x64.zip
-fcb17a4bc9be7d29caea4c45991383914beb8902630effacbf431a1c2912a671  McpExamples.Server.Business-linux-x64.zip
-a7e2ce9af4de944fa24751d0e57f176d8791d695f0e60d004a3667503bedf006  McpExamples.Server.Business-win-x64.zip
-23e7bf2dca5adb4b8eeda24768ba0a318c6c7a01b1aa47f0188cacf42f7d41d4  McpExamples.Server.Remote-linux-x64.zip
-40c8392727747908c9cfb7cb48585ac66035bccedb535e0318b82a5455355ecc  McpExamples.Server.Remote-win-x64.zip
-0ef2e4ac064ff6bb32fd5f771ff27bca5f727730115232d19cb94a584dcedd5f  McpExamples.Server.Workspace-linux-x64.zip
-554b2dc5e75121192762583f52f66a0dfcc2738558da2e62156a7ef0fc255cfb  McpExamples.Server.Workspace-win-x64.zip
-` 
+```text
+1ed4ed9fad8c6a4c50721afa1a256a05aabd7d9ff3ffde82e9167cf94e18693f  McpExamples.AuthorizationServer-linux-x64.zip
+4a95cf69bfd3779b8dcfba38499a8d5cfb777ac7d6e8d6ff685711f5a59513c6  McpExamples.AuthorizationServer-win-x64.zip
+4c43192e474068ef72b7d2b0e485cb077c0c592918cdc68fd4e6ea578b3a693d  McpExamples.Client.Console-linux-x64.zip
+ed4590f634ef1f692334d624ceb458e96b9d3c87fd1502b2a2dc02ed0eea7cff  McpExamples.Client.Console-win-x64.zip
+9c67c8382954ec12378e0e49de602fa9679db2071fdf7223901ea75de958ba8a  McpExamples.Server.Business-linux-x64.zip
+bcb31a517491f9f0f1cf5598c138e265257a4dfd99f2b22b35d51a934ae853c5  McpExamples.Server.Business-win-x64.zip
+2c0104fd05b5657ba7cc1cc0d4664e0fe0b7a9f4f685cf75cd4bff5c79a103be  McpExamples.Server.Remote-linux-x64.zip
+8b520db4e360acae21a9acccdcddf77eb6882dcae9586f0fef179bebc5c273ad  McpExamples.Server.Remote-win-x64.zip
+8284e2eb91612fa73299abd62f9c37df4eaf73651bdc2de0d1b413fb56ec209e  McpExamples.Server.Workspace-linux-x64.zip
+81724f29c84176c2790abe559400d2ba4cc5a703818cb65150ddbd92d5cb14fe  McpExamples.Server.Workspace-win-x64.zip
+```
 
-Final implementation commit before release: $hash.
+## Limitations
+
+- Docker build/start was not validated locally because Docker Desktop was unavailable; CI job performs the reproducible validation.
+- Inspector UI screenshots are not included; only pinned CLI Inspector evidence is claimed.
+- Inspector transitive npm dev dependencies currently report audit findings.
+- HTTPS local development requires trusted local certificates or the CI-generated certificate flow.
 
 

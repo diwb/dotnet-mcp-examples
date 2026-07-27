@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/McpExamples.AuthorizationServer/McpExamples.AuthorizationServer.csproj" />
     <Project Path="src/McpExamples.Client.Console/McpExamples.Client.Console.csproj" />
     <Project Path="src/McpExamples.Server.Business/McpExamples.Server.Business.csproj" />
     <Project Path="src/McpExamples.Server.Remote/McpExamples.Server.Remote.csproj" />

@@ -5,7 +5,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.7" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.4.1" />
+    <PackageReference Include="OpenIddict.Validation.AspNetCore" Version="7.0.0" />
+    <PackageReference Include="OpenIddict.Validation.SystemNetHttp" Version="7.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

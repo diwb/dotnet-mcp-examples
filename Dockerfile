@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 RUN adduser --disabled-password --gecos "" appuser
 USER appuser
 COPY --from=build /out .
-ENV ASPNETCORE_URLS=http://+:8080
-EXPOSE 8080
-HEALTHCHECK CMD curl --fail http://localhost:8080/health || exit 1
+ENV ASPNETCORE_URLS=https://+:8081
+EXPOSE 8081
+HEALTHCHECK CMD curl --insecure --fail https://localhost:8081/health || exit 1
 ENTRYPOINT ["dotnet", "McpExamples.Server.Remote.dll"]

@@ -22,3 +22,99 @@ jobs:
         with:
           name: test-results
           path: TestResults
+
+  docker-oauth-mcp:
+    runs-on: ubuntu-latest
+    env:
+      MCP_EXAMPLES_CERT_PASSWORD: local-ci-password
+      MCP_EXAMPLES_CERT_DIR: ./.certs
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Generate local CA and service certificate
+        run: |
+          set -euo pipefail
+          mkdir -p .certs
+          openssl req -x509 -newkey rsa:4096 -sha256 -days 2 -nodes \
+            -keyout .certs/mcp-examples-ca.key \
+            -out .certs/mcp-examples-ca.crt \
+            -subj "/CN=MCP Examples Local CI CA"
+          cat > .certs/server.cnf <<'EOF'
+          [req]
+          distinguished_name=req_distinguished_name
+          req_extensions=v3_req
+          prompt=no
+          [req_distinguished_name]
+          CN=authorization-server
+          [v3_req]
+          keyUsage=keyEncipherment,digitalSignature
+          extendedKeyUsage=serverAuth
+          subjectAltName=@alt_names
+          [alt_names]
+          DNS.1=authorization-server
+          DNS.2=mcp-remote
+          DNS.3=localhost
+          IP.1=127.0.0.1
+          EOF
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout .certs/mcp-examples.key \
+            -out .certs/mcp-examples.csr \
+            -config .certs/server.cnf
+          openssl x509 -req -in .certs/mcp-examples.csr \
+            -CA .certs/mcp-examples-ca.crt \
+            -CAkey .certs/mcp-examples-ca.key \
+            -CAcreateserial \
+            -out .certs/mcp-examples.crt \
+            -days 2 -sha256 \
+            -extensions v3_req -extfile .certs/server.cnf
+          openssl pkcs12 -export \
+            -out .certs/mcp-examples.pfx \
+            -inkey .certs/mcp-examples.key \
+            -in .certs/mcp-examples.crt \
+            -certfile .certs/mcp-examples-ca.crt \
+            -passout pass:${MCP_EXAMPLES_CERT_PASSWORD}
+          chmod 644 .certs/mcp-examples.pfx .certs/mcp-examples-ca.crt
+          sudo cp .certs/mcp-examples-ca.crt /usr/local/share/ca-certificates/mcp-examples-ca.crt
+          sudo update-ca-certificates
+      - name: Build and start compose
+        run: |
+          docker compose build
+          docker compose up -d
+      - name: Validate health and OAuth discovery
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            curl --fail https://localhost:8081/health && break || sleep 2
+          done
+          curl --fail --resolve authorization-server:7001:127.0.0.1 https://authorization-server:7001/health
+          curl --fail --resolve authorization-server:7001:127.0.0.1 https://authorization-server:7001/.well-known/openid-configuration | tee discovery.json
+          grep -q 'authorization_endpoint' discovery.json
+      - name: Issue token and call MCP authenticated
+        run: |
+          set -euo pipefail
+          verifier="$(openssl rand -base64 48 | tr '+/' '-_' | tr -d '=')"
+          challenge="$(printf '%s' "$verifier" | openssl dgst -sha256 -binary | openssl base64 -A | tr '+/' '-_' | tr -d '=')"
+          auth_url="https://authorization-server:7001/connect/authorize?response_type=code&client_id=mcp-examples-public&redirect_uri=http%3A%2F%2F127.0.0.1%3A37645%2Fcallback&scope=catalog.read%20orders.read%20orders.write&code_challenge=${challenge}&code_challenge_method=S256"
+          curl --resolve authorization-server:7001:127.0.0.1 -sS -D headers.txt -o auth-body.txt "$auth_url" || true
+          code="$(python - <<'PY'
+          from urllib.parse import urlparse, parse_qs
+          headers=open('headers.txt', encoding='utf-8').read().splitlines()
+          loc=next((line.split(':',1)[1].strip() for line in headers if line.lower().startswith('location:')), '')
+          print(parse_qs(urlparse(loc).query).get('code', [''])[0])
+          PY
+          )"
+          test -n "$code"
+          token_json="$(curl --resolve authorization-server:7001:127.0.0.1 -sS --fail https://authorization-server:7001/connect/token \
+            -d grant_type=authorization_code \
+            -d client_id=mcp-examples-public \
+            -d redirect_uri=http://127.0.0.1:37645/callback \
+            -d code="$code" \
+            -d code_verifier="$verifier")"
+          token="$(python -c 'import json,sys; print(json.load(sys.stdin)["access_token"])' <<< "$token_json")"
+          MCP_EXAMPLES_ACCESS_TOKEN="$token" dotnet run --project src/McpExamples.Client.Console/McpExamples.Client.Console.csproj -c Release -- http https://localhost:8081/mcp tools | tee mcp-tools.json
+          grep -q 'business.get_order' mcp-tools.json
+      - name: Shutdown compose
+        if: always()
+        run: docker compose down --volumes

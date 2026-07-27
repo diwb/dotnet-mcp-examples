@@ -9,3 +9,5 @@ artifacts/
 *.suo
 *.db
 *.log
+.certs/
+tools/inspector/node_modules/
